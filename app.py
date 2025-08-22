@@ -1,25 +1,32 @@
-from array import array
-from altair import value
-import streamlit as st 
-from scipy.integrate import solve_ivp
-import numpy as np
+from flask import Flask, request, jsonify, render_template
+import geopandas as gpd
+from shapely.geometry import Point
 
-def lanchester(t, y, a, b):
-    B, R = y
-    return [-a * R, -b * B]
+app = Flask(__name__)
+DATA = "units.geojson"
 
-st.title('Lanchester Model Simulation')
-blue = st.number_input('Initial Blue Army Strength', value=800) #青軍の初期兵力
-red = st.number_input('Initial Red Army Strength', value=1000) #赤軍の初期兵力
-y0 = [blue, red]  # 初期兵力 B、R
-a, b = 0.003, 0.002 #殲滅効率
-sol = solve_ivp(lanchester, [0,48], y0, args=(a,b), dense_output=True)
-t = np.linspace(0, 48, 200)
-B, R = sol.sol(t)
-st.write('Result:', B, R)
-st.line_chart(B, x_label='Blue Army')
-st.line_chart(R, x_label='Red Army')
-st.write('Blue Army:', B)
-st.write('Red Army:', R)
-st.line_chart(B, x_label='Blue Army')
-st.line_chart(R, x_label='Red Army')
+def load_gdf():
+    return gpd.read_file(DATA)
+
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/units')
+def units():
+    gdf = load_gdf()
+    return gdf.to_jsson()
+
+@app.post('/update')
+def update():
+    p = request.get_json(force=True)
+    uid, lat, lon = int(p["id"]), float(p["lat"]), float(p["lon"])
+    gdf = load_gdf()
+    idx = gdf.index[gdf["id"] == uid][0]
+    gdf.at[idx, "geometry"] = Point(lon, lat)
+    gdf.to_file(DATA, driver="GeoJSON")
+    return jsonify(ok=True)
+
+if __name__ == "__main__":
+    app.run(debug=True)

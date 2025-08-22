@@ -1,0 +1,10 @@
+{
+"type": "FeatureCollection",
+"name": "units",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "id": 1, "name": "第1歩兵中隊", "side": "red", "personnel": 120, "lon": 141.354, "lat": 43.0642, "sidc": "SFGPUCI----" }, "geometry": { "type": "Point", "coordinates": [ 141.354, 43.0642 ] } },
+{ "type": "Feature", "properties": { "id": 2, "name": "第2戦車小隊", "side": "white", "personnel": 35, "lon": 140.74, "lat": 41.7688, "sidc": "SFGPUSAT---" }, "geometry": { "type": "Point", "coordinates": [ 140.74, 41.7688 ] } },
+{ "type": "Feature", "properties": { "id": 3, "name": "砲兵分遣隊", "side": "red", "personnel": 80, "lon": 140.728, "lat": 42.9849, "sidc": "SFGPUCAA---" }, "geometry": { "type": "Point", "coordinates": [ 140.728, 42.9849 ] } }
+]
+}

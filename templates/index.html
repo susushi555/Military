@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8"/>
+  <title>Military GIS</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <style>
+    html,body,#map { height:100%; margin:0; }
+    .toolbar {
+      position:absolute; z-index:1000; top:12px; left:12px;
+      background:#fff; padding:8px 10px; border-radius:6px; box-shadow:0 2px 8px rgba(0,0,0,.15);
+      font:14px/1.2 sans-serif;
+    }
+  </style>
+</head>
+<body>
+<div id="map"></div>
+<div class="toolbar">
+  <button id="save">位置を保存</button>
+  <span id="status"></span>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/milsymbol/dist/milsymbol.js"></script>
+
+<script>
+const map = L.map('map').setView([42.5, 141.0], 6);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution:'&copy; OpenStreetMap'
+}).addTo(map);
+
+const markers = new Map();
+
+// 人数→アイコンサイズ（px）
+function sizeFor(pers){
+  return Math.max(18, Math.min(64, 16 + Math.sqrt(pers)*2));
+}
+
+// 力の別→色
+function colors(side){
+  return side === "red"
+    ? {fill:"#ff0000", stroke:"#7f0000"}
+    : {fill:"#ffffff", stroke:"#666666"};
+}
+
+// milsymbol アイコン化
+function makeIcon(sidc, side, personnel){
+  const s = sizeFor(personnel);
+  const col = colors(side);
+  const sym = new ms.Symbol(sidc, {
+    size: s,                                // 人数でスケール
+    fillColor: col.fill, strokeColor: col.stroke,
+    outlineColor: col.stroke, outlineWidth: 1
+  });
+  return L.icon({
+    iconUrl: sym.toDataURL(""),               // PNG DataURL
+    iconSize: [sym.getSize().width, sym.getSize().height],
+    iconAnchor: [sym.getAnchor().x, sym.getAnchor().y]
+  });
+}
+
+// 初期ロード
+fetch("/units").then(r => r.json()).then(gj => {
+  const feats = gj.features ?? [];
+  // 地図の中心をデータ中心に
+  if (feats.length){
+    const lat = feats.reduce((a,f)=>a+f.geometry.coordinates[1],0)/feats.length;
+    const lon = feats.reduce((a,f)=>a+f.geometry.coordinates[0],0)/feats.length;
+    map.setView([lat,lon], 6);
+  }
+  feats.forEach(f => {
+    const p = f.properties;
+    const lat = f.geometry.coordinates[1], lon = f.geometry.coordinates[0];
+    const icon = makeIcon(p.sidc, p.side, p.personnel);
+    const m = L.marker([lat, lon], { draggable:true, icon }).addTo(map);
+    m.bindPopup(`<b>${p.name}</b><br>勢力:${p.side}<br>戦闘要員:${p.personnel}`);
+    markers.set(p.id, m);
+  });
+});
+
+// 位置保存（全マーカーの現在座標を送る）
+document.getElementById("save").onclick = async () => {
+  const status = document.getElementById("status");
+  status.textContent = "保存中…";
+  try {
+    for (const [id, m] of markers.entries()){
+      const ll = m.getLatLng();
+      await fetch("/update", {
+        method:"POST", headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({id, lat: ll.lat, lon: ll.lng})
+      });
+    }
+    status.textContent = "保存しました";
+    setTimeout(()=> status.textContent = "", 1500);
+  } catch (e){
+    console.error(e);
+    status.textContent = "保存エラー";
+  }
+};
+</script>
+</body>
+</html>
